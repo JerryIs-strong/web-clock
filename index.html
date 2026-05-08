@@ -6,253 +6,393 @@
 <title>Clock</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=Orbitron:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Orbitron:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root, [data-theme="light"] {
-    --color-bg: #f7f6f2;
-    --color-surface: #f0ede8;
-    --color-surface-2: #e8e5df;
-    --color-text: #28251d;
-    --color-text-muted: #7a7974;
-    --color-text-faint: #bab9b4;
-    --color-primary: #01696f;
-    --color-divider: #dcd9d5;
-    --color-border: oklch(from #28251d l c h / 0.12);
-    --color-error: #a13544;
-    --color-success: #437a22;
-    --font-display: 'Orbitron', monospace;
-    --font-body: 'Inter', sans-serif;
-    --transition: 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
+:root, [data-theme="light"] {
+  --color-bg:           #f7f6f2;
+  --color-surface:      #f0ede8;
+  --color-surface-2:    #e8e5df;
+  --color-text:         #28251d;
+  --color-text-muted:   #7a7974;
+  --color-text-faint:   #bab9b4;
+  --color-primary:      #01696f;
+  --color-primary-hl:   #cedcd8;
+  --color-divider:      #dcd9d5;
+  --color-border:       oklch(from #28251d l c h / 0.12);
+  --color-error:        #a13544;
+  --color-success:      #437a22;
+  --color-warning:      #964219;
+  --font-display:       'Orbitron', monospace;
+  --font-body:          'Inter', sans-serif;
+  --tr:                 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-  [data-theme="dark"] {
-    --color-bg: #0e0d0c;
-    --color-surface: #1c1b19;
-    --color-surface-2: #242321;
-    --color-text: #cdccca;
-    --color-text-muted: #797876;
-    --color-text-faint: #5a5957;
-    --color-primary: #4f98a3;
-    --color-divider: #262523;
-    --color-border: oklch(from #cdccca l c h / 0.10);
-    --color-error: #dd6974;
-    --color-success: #6daa45;
-  }
+[data-theme="dark"] {
+  --color-bg:           #0e0d0c;
+  --color-surface:      #1c1b19;
+  --color-surface-2:    #242321;
+  --color-text:         #cdccca;
+  --color-text-muted:   #797876;
+  --color-text-faint:   #5a5957;
+  --color-primary:      #4f98a3;
+  --color-primary-hl:   #313b3b;
+  --color-divider:      #262523;
+  --color-border:       oklch(from #cdccca l c h / 0.10);
+  --color-error:        #dd6974;
+  --color-success:      #6daa45;
+  --color-warning:      #fdab43;
+}
 
-  html, body {
-    width: 100%; height: 100dvh;
-    background: var(--color-bg);
-    color: var(--color-text);
-    font-family: var(--font-body);
-    transition: background var(--transition), color var(--transition);
-    overflow: hidden;
-  }
+html, body {
+  width: 100%; height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  transition: background var(--tr), color var(--tr);
+  overflow: hidden;
+}
 
-  /* ── Layout ─────────────────────────────────────────────── */
-  .clock-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100dvh;
-    gap: clamp(0.6rem, 1.5vh, 1.4rem);
-    user-select: none;
-    padding: 4rem 1rem;
-  }
+/* ── Corner buttons ─────────────────────────── */
+.corner-btn {
+  position: fixed;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  z-index: 100;
+  transition: background var(--tr), color var(--tr), border-color var(--tr), box-shadow var(--tr), transform 80ms;
+}
+.corner-btn:hover { color: var(--color-text); box-shadow: 0 2px 8px oklch(0.2 0.01 80 / 0.12); }
+.corner-btn:active { transform: scale(0.93); }
+#fullscreenBtn { top: 1.25rem; left: 1.25rem; }
+#themeToggle   { top: 1.25rem; right: 1.25rem; }
+#syncBtn       { bottom: 1.25rem; right: 1.25rem; }
 
-  /* ── Main time display ──────────────────────────────────── */
-  .clock-time {
-    font-family: var(--font-display);
-    font-size: clamp(4rem, 15vw, 13rem);
-    font-weight: 300;
-    letter-spacing: 0.04em;
-    color: var(--color-text);
-    line-height: 1;
-    transition: color var(--transition);
-    text-align: center;
-  }
+@keyframes spin { to { transform: rotate(360deg); } }
+.syncing-spin { animation: spin 0.7s linear infinite; }
 
-  .colon {
-    display: inline-block;
-    animation: blink 1s step-end infinite;
-    color: var(--color-primary);
-  }
+/* ── Tab bar ────────────────────────────────── */
+.tab-bar {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  padding: 0.3rem;
+  z-index: 100;
+  transition: background var(--tr), border-color var(--tr);
+}
+.tab-btn {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background var(--tr), color var(--tr);
+}
+.tab-btn:hover { color: var(--color-text); }
+.tab-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+}
 
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.12; }
-  }
+/* ── Panels ─────────────────────────────────── */
+.panel {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  gap: clamp(0.6rem, 1.5vh, 1.3rem);
+  padding: 5rem 1rem 5rem;
+  user-select: none;
+}
+.panel.active { display: flex; }
 
-  .clock-seconds {
-    font-family: var(--font-display);
-    font-size: clamp(1.4rem, 3.5vw, 3.5rem);
-    font-weight: 300;
-    letter-spacing: 0.1em;
-    color: var(--color-primary);
-    transition: color var(--transition);
-  }
+/* ── Clock panel specifics ───────────────────── */
+.clock-date {
+  font-size: clamp(0.72rem, 1.4vw, 1rem);
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  transition: color var(--tr);
+}
 
-  /* ── Date ───────────────────────────────────────────────── */
-  .clock-date {
-    font-size: clamp(0.75rem, 1.6vw, 1.1rem);
-    font-weight: 300;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    transition: color var(--transition);
-  }
+.big-time {
+  font-family: var(--font-display);
+  font-size: clamp(3.8rem, 14vw, 12rem);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  line-height: 1;
+  transition: color var(--tr);
+  text-align: center;
+}
+.big-time .colon {
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+  color: var(--color-primary);
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.12} }
 
-  /* ── Timezone pill ──────────────────────────────────────── */
-  .tz-pill {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: 9999px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    transition: background var(--transition), border-color var(--transition);
-  }
+.sub-time {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 3vw, 3rem);
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  color: var(--color-primary);
+  transition: color var(--tr);
+}
 
-  .tz-icon {
-    color: var(--color-primary);
-    flex-shrink: 0;
-    transition: color var(--transition);
-  }
+.bar-track {
+  width: clamp(120px, 28vw, 340px);
+  height: 2px;
+  background: var(--color-divider);
+  border-radius: 9999px;
+  overflow: hidden;
+  transition: background var(--tr);
+}
+.bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 9999px;
+  transition: width 0.95s linear, background var(--tr);
+}
 
-  .tz-name {
-    font-size: 0.78rem;
-    font-weight: 400;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-    transition: color var(--transition);
-  }
+.divider { width: clamp(40px, 5vw, 80px); height: 1px; background: var(--color-divider); transition: background var(--tr); }
 
-  .tz-offset {
-    font-size: 0.72rem;
-    font-weight: 300;
-    letter-spacing: 0.04em;
-    color: var(--color-text-faint);
-    padding-left: 0.3rem;
-    border-left: 1px solid var(--color-divider);
-    transition: color var(--transition), border-color var(--transition);
-  }
+.tz-pill {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.32rem 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: background var(--tr), border-color var(--tr);
+}
+.tz-icon { color: var(--color-primary); flex-shrink: 0; transition: color var(--tr); }
+.tz-name { font-size: 0.76rem; font-weight: 400; letter-spacing: 0.06em; color: var(--color-text-muted); }
+.tz-offset {
+  font-size: 0.7rem; font-weight: 300; color: var(--color-text-faint);
+  padding-left: 0.3rem; border-left: 1px solid var(--color-divider);
+  transition: color var(--tr), border-color var(--tr);
+}
 
-  /* ── Seconds progress bar ───────────────────────────────── */
-  .seconds-bar-track {
-    width: clamp(120px, 28vw, 340px);
-    height: 2px;
-    background: var(--color-divider);
-    border-radius: 9999px;
-    overflow: hidden;
-    transition: background var(--transition);
-  }
+.sync-status {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.66rem; font-weight: 400; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--color-text-faint);
+}
+.sync-dot { width:6px;height:6px;border-radius:50%;background:var(--color-text-faint);flex-shrink:0;transition:background 0.4s; }
+.sync-dot.synced  { background: var(--color-success); }
+.sync-dot.syncing { background: var(--color-primary); animation: pulse 1s ease-in-out infinite; }
+.sync-dot.error   { background: var(--color-error); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.65)} }
 
-  .seconds-bar-fill {
-    height: 100%;
-    background: var(--color-primary);
-    border-radius: 9999px;
-    transition: width 0.95s linear, background var(--transition);
-  }
+/* ── Stopwatch / Countdown shared ────────────── */
+.display-large {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 13vw, 11rem);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+  line-height: 1;
+  text-align: center;
+  transition: color var(--tr);
+}
+.display-large.running { color: var(--color-primary); }
+.display-large.finished { color: var(--color-error); }
 
-  /* ── Thin divider ───────────────────────────────────────── */
-  .divider {
-    width: clamp(48px, 6vw, 100px);
-    height: 1px;
-    background: var(--color-divider);
-    transition: background var(--transition);
-  }
+.display-ms {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.8vw, 2.5rem);
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--color-text-faint);
+  transition: color var(--tr);
+}
+.display-large.running ~ .display-ms { color: var(--color-primary); opacity: 0.6; }
 
-  /* ── Sync status ─────────────────────────────────────────── */
-  .sync-status {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.68rem;
-    font-weight: 400;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--color-text-faint);
-    transition: color var(--transition);
-  }
+/* ── Control buttons ────────────────────────── */
+.ctrl-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.ctrl-btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.4rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background var(--tr), color var(--tr), transform 80ms, box-shadow var(--tr);
+}
+.ctrl-btn:active { transform: scale(0.95); }
 
-  .sync-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--color-text-faint);
-    flex-shrink: 0;
-    transition: background 0.4s ease;
-  }
-  .sync-dot.synced  { background: var(--color-success); }
-  .sync-dot.syncing { background: var(--color-primary); animation: pulse 1s ease-in-out infinite; }
-  .sync-dot.error   { background: var(--color-error); }
+.ctrl-btn.primary {
+  padding: 0.7rem 2rem;
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 2px 12px oklch(from var(--color-primary) l c h / 0.35);
+}
+.ctrl-btn.primary:hover { filter: brightness(1.1); }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.65); }
-  }
+.ctrl-btn.secondary {
+  padding: 0.7rem 1.4rem;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.ctrl-btn.secondary:hover { color: var(--color-text); }
 
-  /* ── Corner buttons ─────────────────────────────────────── */
-  .corner-btn {
-    position: fixed;
-    width: 44px; height: 44px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: background var(--transition), color var(--transition),
-                border-color var(--transition), box-shadow var(--transition), transform 80ms;
-  }
-  .corner-btn:hover {
-    color: var(--color-text);
-    box-shadow: 0 2px 8px oklch(0.2 0.01 80 / 0.12);
-  }
-  .corner-btn:active { transform: scale(0.93); }
+.ctrl-btn.danger {
+  padding: 0.7rem 1.4rem;
+  background: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  opacity: 0.8;
+}
+.ctrl-btn.danger:hover { opacity: 1; }
 
-  #fullscreenBtn { top: 1.25rem; left: 1.25rem; }
-  #syncBtn       { bottom: 1.25rem; right: 1.25rem; }
-  #themeToggle   { top: 1.25rem; right: 1.25rem; }
-  /* ── Sync button spin ──────────────────────────────────── */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .syncing-spin { animation: spin 0.7s linear infinite; }
+/* ── Laps list (stopwatch) ──────────────────── */
+.laps-container {
+  width: min(440px, 90vw);
+  max-height: 14vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-divider) transparent;
+}
+.laps-list { list-style: none; width: 100%; }
+.lap-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.28rem 0.6rem;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  transition: color var(--tr), border-color var(--tr);
+}
+.lap-item:first-child { border-top: 1px solid var(--color-divider); }
+.lap-item .lap-num { color: var(--color-text-faint); }
+.lap-item .lap-time { font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.06em; color: var(--color-text); }
+.lap-item .lap-split { font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.04em; }
+.lap-item.fastest .lap-split { color: var(--color-success); }
+.lap-item.slowest .lap-split { color: var(--color-error); }
+
+/* ── Countdown input ────────────────────────── */
+.cd-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+.cd-field {
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+}
+.cd-field label {
+  font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-text-faint); transition: color var(--tr);
+}
+.cd-field input {
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 8vw, 6rem);
+  font-weight: 300;
+  width: clamp(100px, 16vw, 160px);
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  color: var(--color-text);
+  padding: 0.6rem 0.3rem;
+  transition: background var(--tr), border-color var(--tr), color var(--tr);
+  -moz-appearance: textfield;
+}
+.cd-field input::-webkit-inner-spin-button,
+.cd-field input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.cd-field input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.cd-sep {
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 8vw, 6rem);
+  font-weight: 300;
+  color: var(--color-text-faint);
+  padding-bottom: 0.5rem;
+}
+
+.cd-progress-track {
+  width: min(400px, 80vw);
+  height: 3px;
+  background: var(--color-divider);
+  border-radius: 9999px;
+  overflow: hidden;
+  transition: background var(--tr);
+}
+.cd-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 9999px;
+  transition: width 0.25s linear, background var(--tr);
+}
+.cd-progress-fill.urgent { background: var(--color-error); }
+
 </style>
 </head>
 <body>
 
+<!-- Corner controls -->
 <button class="corner-btn" id="fullscreenBtn" aria-label="Toggle fullscreen">
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
   </svg>
 </button>
-
-<button class="corner-btn" id="themeToggle" aria-label="Switch to light mode">
+<button class="corner-btn" id="themeToggle" aria-label="Switch to light mode"></button>
+<button class="corner-btn" id="syncBtn" aria-label="Sync time now" title="Sync with timeapi.io">
+  <svg id="syncBtnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+  </svg>
 </button>
 
-<button class="corner-btn" id="syncBtn" aria-label="Sync time now">
-  <svg id="syncBtnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-</button>
+<!-- Tab bar -->
+<nav class="tab-bar" role="tablist" aria-label="Mode">
+  <button class="tab-btn active" role="tab" data-panel="panel-clock"  aria-selected="true">Clock</button>
+  <button class="tab-btn"        role="tab" data-panel="panel-sw"     aria-selected="false">Stopwatch</button>
+  <button class="tab-btn"        role="tab" data-panel="panel-cd"     aria-selected="false">Countdown</button>
+</nav>
 
-<div class="clock-wrapper" role="main" aria-label="Clock">
+<!-- ══ CLOCK PANEL ══════════════════════════════════════════════════════════ -->
+<section class="panel active" id="panel-clock" role="tabpanel">
   <div class="clock-date" id="clockDate">—</div>
-
-  <div class="clock-time" aria-live="polite">
+  <div class="big-time" aria-live="polite">
     <span id="timeHM">--:--</span><span class="colon" aria-hidden="true">.</span>
   </div>
-
-  <div class="clock-seconds" id="clockSec" aria-label="Seconds">--</div>
-
-  <div class="seconds-bar-track" aria-hidden="true">
-    <div class="seconds-bar-fill" id="secBar" style="width:0%"></div>
+  <div class="sub-time" id="clockSec">--</div>
+  <div class="bar-track" aria-hidden="true">
+    <div class="bar-fill" id="secBar" style="width:0%"></div>
   </div>
-
   <div class="divider" aria-hidden="true"></div>
-
-  <!-- Timezone pill -->
-  <div class="tz-pill" id="tzPill" aria-label="Timezone">
+  <div class="tz-pill" aria-label="Timezone">
     <svg class="tz-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
       <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
@@ -260,22 +400,70 @@
     <span class="tz-name" id="tzName">Detecting…</span>
     <span class="tz-offset" id="tzOffset"></span>
   </div>
-
-  <!-- Sync status -->
   <div class="sync-status">
     <div class="sync-dot syncing" id="syncDot"></div>
     <span id="syncLabel">Syncing with timeapi.io…</span>
   </div>
-</div>
+</section>
+
+<!-- ══ STOPWATCH PANEL ══════════════════════════════════════════════════════ -->
+<section class="panel" id="panel-sw" role="tabpanel">
+  <div class="display-large" id="swDisplay">00:00</div>
+  <div class="display-ms" id="swMs">.00</div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn secondary" id="swLapReset">Lap</button>
+    <button class="ctrl-btn primary"   id="swStartStop">Start</button>
+  </div>
+  <div class="laps-container" id="lapsContainer" aria-live="polite">
+    <ul class="laps-list" id="lapsList"></ul>
+  </div>
+</section>
+
+<!-- ══ COUNTDOWN PANEL ══════════════════════════════════════════════════════ -->
+<section class="panel" id="panel-cd" role="tabpanel">
+  <!-- Input form (shown when idle) -->
+  <div id="cdInputView">
+    <div class="cd-input-row">
+      <div class="cd-field">
+        <label for="cdH">Hours</label>
+        <input type="number" id="cdH" min="0" max="99" value="0" placeholder="00">
+      </div>
+      <span class="cd-sep">:</span>
+      <div class="cd-field">
+        <label for="cdM">Min</label>
+        <input type="number" id="cdM" min="0" max="59" value="5" placeholder="00">
+      </div>
+      <span class="cd-sep">:</span>
+      <div class="cd-field">
+        <label for="cdS">Sec</label>
+        <input type="number" id="cdS" min="0" max="59" value="0" placeholder="00">
+      </div>
+    </div>
+  </div>
+
+  <!-- Running / paused display -->
+  <div id="cdRunView" style="display:none; flex-direction:column; align-items:center; gap: clamp(0.6rem,1.5vh,1.3rem)">
+    <div class="display-large" id="cdDisplay">00:05:00</div>
+    <div class="cd-progress-track">
+      <div class="cd-progress-fill" id="cdProgressFill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <div class="ctrl-row" id="cdCtrlRow">
+    <button class="ctrl-btn danger"   id="cdReset"     style="display:none">Reset</button>
+    <button class="ctrl-btn primary"  id="cdStartStop">Start</button>
+  </div>
+</section>
 
 <script>
-// ── Theme ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════
 (function () {
   const toggle = document.getElementById('themeToggle');
   const root = document.documentElement;
-  let theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  // page default is dark; keep that if system is also dark
-  theme = root.getAttribute('data-theme') || theme;
+  let theme = root.getAttribute('data-theme') ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
   const moonSVG = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
   const sunSVG  = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
@@ -290,13 +478,38 @@
   toggle.addEventListener('click', () => apply(theme === 'dark' ? 'light' : 'dark'));
 })();
 
-// ── Fullscreen ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+// FULLSCREEN
+// ═══════════════════════════════════════════════════
 document.getElementById('fullscreenBtn').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
   else document.exitFullscreen().catch(() => {});
 });
 
-// ── Clock + Sync ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+// TAB SWITCHER
+// ═══════════════════════════════════════════════════
+(function () {
+  const tabs   = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  // Only show sync btn on clock tab
+  const syncBtn = document.getElementById('syncBtn');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected','true');
+      document.getElementById(tab.dataset.panel).classList.add('active');
+      syncBtn.style.display = tab.dataset.panel === 'panel-clock' ? '' : 'none';
+    });
+  });
+})();
+
+// ═══════════════════════════════════════════════════
+// CLOCK + SYNC
+// ═══════════════════════════════════════════════════
 (function () {
   const elDate   = document.getElementById('clockDate');
   const elTimeHM = document.getElementById('timeHM');
@@ -307,62 +520,43 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
   const elDot    = document.getElementById('syncDot');
   const elLabel  = document.getElementById('syncLabel');
 
-  // Detect user's local IANA timezone (e.g. "Asia/Hong_Kong")
   const localTZ  = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const encodedTZ = encodeURIComponent(localTZ);
-  const API_URL  = `https://timeapi.io/api/time/current/zone?timeZone=${encodedTZ}`;
+  const API_URL  = `https://timeapi.io/api/time/current/zone?timeZone=${encodeURIComponent(localTZ)}`;
 
-  let serverOffset = 0; // ms drift between server and local clock
-  let synced = false;
+  let serverOffset = 0;
 
   const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const pad2 = n => String(n).padStart(2,'0');
 
-  function pad2(n) { return String(n).padStart(2, '0'); }
-
-  // UTC offset string e.g. "UTC+8:00"
   function fmtOffset(date) {
-    const off = -date.getTimezoneOffset(); // minutes
+    const off  = -date.getTimezoneOffset();
     const sign = off >= 0 ? '+' : '-';
     const abs  = Math.abs(off);
-    const h    = Math.floor(abs / 60);
-    const m    = abs % 60;
-    return `UTC${sign}${h}${m ? ':' + pad2(m) : ''}`;
+    return `UTC${sign}${Math.floor(abs/60)}${abs%60 ? ':'+pad2(abs%60) : ''}`;
   }
 
-  function getSyncedNow() {
-    return new Date(Date.now() + serverOffset);
-  }
+  function getSyncedNow() { return new Date(Date.now() + serverOffset); }
 
   function render() {
     const now = getSyncedNow();
-    const h   = now.getHours();
-    const m   = now.getMinutes();
-    const s   = now.getSeconds();
-    const ms  = now.getMilliseconds();
-
-    elTimeHM.textContent = `${pad2(h)}:${pad2(m)}`;
-    elSec.textContent    = pad2(s);
+    elTimeHM.textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    elSec.textContent    = pad2(now.getSeconds());
     elDate.textContent   = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-    elBar.style.width    = `${((s + ms / 1000) / 60) * 100}%`;
+    const s = now.getSeconds(), ms = now.getMilliseconds();
+    elBar.style.width = `${((s + ms/1000)/60)*100}%`;
   }
 
-  function setTZDisplay(tzString) {
-    // Format: "America/New_York" → "America / New York"
-    const pretty = tzString.replace(/_/g, ' ');
-    elTzName.textContent = pretty;
+  function setTZDisplay(tz) {
+    elTzName.textContent = tz.replace(/_/g,' ');
     elTzOff.textContent  = fmtOffset(new Date());
   }
 
   function setStatus(state) {
     elDot.className = `sync-dot ${state}`;
-    if (state === 'synced') {
-      elLabel.textContent = `Synced · timeapi.io`;
-    } else if (state === 'syncing') {
-      elLabel.textContent = 'Syncing with timeapi.io…';
-    } else {
-      elLabel.textContent = 'Sync failed — using device time';
-    }
+    elLabel.textContent = state === 'synced'  ? 'Synced · timeapi.io'
+                        : state === 'syncing' ? 'Syncing with timeapi.io…'
+                        : 'Sync failed — using device time';
   }
 
   window.sync = async function sync() {
@@ -370,53 +564,268 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
     const t0 = Date.now();
     try {
       const res  = await fetch(API_URL, { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) throw new Error();
       const data = await res.json();
       const latency = (Date.now() - t0) / 2;
-
-      // data.dateTime: "2026-05-08T18:52:30.123"
-      const serverMs = new Date(data.dateTime).getTime();
-      serverOffset   = (serverMs + latency) - Date.now();
-      synced = true;
-
-      // Use timezone from API response (confirms what the server recognised)
-      const tz = data.timeZone || localTZ;
-      setTZDisplay(tz);
+      serverOffset = new Date(data.dateTime).getTime() + latency - Date.now();
+      setTZDisplay(data.timeZone || localTZ);
       setStatus('synced');
-    } catch (e) {
+    } catch {
       serverOffset = 0;
       setTZDisplay(localTZ);
       setStatus('error');
     }
-  }
+  };
 
   function tick() {
     render();
     const now = getSyncedNow();
-    const msToNext = 1000 - now.getMilliseconds();
-    setTimeout(tick, msToNext > 5 ? msToNext : 50);
+    setTimeout(tick, 1000 - now.getMilliseconds() || 50);
   }
 
-  // Show local TZ immediately before API responds
   setTZDisplay(localTZ);
-
-  sync();
-  setInterval(sync, 5 * 60 * 1000); // re-sync every 5 min
+  window.sync();
+  setInterval(window.sync, 5 * 60 * 1000);
   tick();
 })();
 
-  // ── Manual sync button ──────────────────────────────────
-  (function(){
-    const btn  = document.getElementById('syncBtn');
-    const icon = document.getElementById('syncBtnIcon');
-    btn.addEventListener('click', () => {
-      if (icon.classList.contains('syncing-spin')) return;
-      icon.classList.add('syncing-spin');
-      sync().finally(() => {
-        setTimeout(() => icon.classList.remove('syncing-spin'), 500);
-      });
+// ── Manual sync button ──────────────────────────────
+(function () {
+  const btn  = document.getElementById('syncBtn');
+  const icon = document.getElementById('syncBtnIcon');
+  btn.addEventListener('click', () => {
+    if (icon.classList.contains('syncing-spin')) return;
+    icon.classList.add('syncing-spin');
+    window.sync().finally(() => setTimeout(() => icon.classList.remove('syncing-spin'), 500));
+  });
+})();
+
+// ═══════════════════════════════════════════════════
+// STOPWATCH
+// ═══════════════════════════════════════════════════
+(function () {
+  const elDisplay   = document.getElementById('swDisplay');
+  const elMs        = document.getElementById('swMs');
+  const btnStartStop= document.getElementById('swStartStop');
+  const btnLapReset = document.getElementById('swLapReset');
+  const lapsList    = document.getElementById('lapsList');
+
+  let running = false, startTime = 0, elapsed = 0, rafId = null;
+  let laps = [], lapStart = 0;
+
+  const pad2  = n => String(n).padStart(2,'0');
+  const pad3  = n => String(n).padStart(3,'0');
+
+  function fmtTime(ms) {
+    const cs = Math.floor(ms / 10) % 100;
+    const s  = Math.floor(ms / 1000) % 60;
+    const m  = Math.floor(ms / 60000) % 60;
+    const h  = Math.floor(ms / 3600000);
+    return h > 0
+      ? `${pad2(h)}:${pad2(m)}:${pad2(s)}`
+      : `${pad2(m)}:${pad2(s)}`;
+  }
+
+  function fmtMs(ms) {
+    return '.' + pad2(Math.floor(ms / 10) % 100);
+  }
+
+  function render() {
+    const now = running ? elapsed + (Date.now() - startTime) : elapsed;
+    elDisplay.textContent = fmtTime(now);
+    elMs.textContent      = fmtMs(now);
+    if (running) rafId = requestAnimationFrame(render);
+  }
+
+  function renderLaps() {
+    if (!laps.length) { lapsList.innerHTML = ''; return; }
+    const splits = laps.map(l => l.split);
+    const minS = Math.min(...splits), maxS = Math.max(...splits);
+    lapsList.innerHTML = laps.slice().reverse().map((l, ri) => {
+      const i = laps.length - ri;
+      const cls = splits.length > 1
+        ? (l.split === minS ? 'lap-item fastest' : l.split === maxS ? 'lap-item slowest' : 'lap-item')
+        : 'lap-item';
+      return `<li class="${cls}">
+        <span class="lap-num">Lap ${i}</span>
+        <span class="lap-time">${fmtTime(l.total)}</span>
+        <span class="lap-split">${fmtTime(l.split)}</span>
+      </li>`;
+    }).join('');
+  }
+
+  btnStartStop.addEventListener('click', () => {
+    if (!running) {
+      startTime = Date.now();
+      if (elapsed === 0) lapStart = 0;
+      running = true;
+      elDisplay.classList.add('running');
+      btnStartStop.textContent = 'Stop';
+      btnLapReset.textContent  = 'Lap';
+      rafId = requestAnimationFrame(render);
+    } else {
+      elapsed += Date.now() - startTime;
+      running = false;
+      cancelAnimationFrame(rafId);
+      elDisplay.classList.remove('running');
+      btnStartStop.textContent = 'Resume';
+      btnLapReset.textContent  = 'Reset';
+    }
+  });
+
+  btnLapReset.addEventListener('click', () => {
+    if (running) {
+      // Lap
+      const now   = elapsed + (Date.now() - startTime);
+      const split = now - lapStart;
+      lapStart = now;
+      laps.push({ total: now, split });
+      renderLaps();
+    } else {
+      // Reset
+      elapsed = 0; laps = []; lapStart = 0;
+      elDisplay.textContent = '00:00';
+      elMs.textContent      = '.00';
+      elDisplay.classList.remove('running');
+      btnStartStop.textContent = 'Start';
+      btnLapReset.textContent  = 'Lap';
+      renderLaps();
+    }
+  });
+})();
+
+// ═══════════════════════════════════════════════════
+// COUNTDOWN
+// ═══════════════════════════════════════════════════
+(function () {
+  const inputView    = document.getElementById('cdInputView');
+  const runView      = document.getElementById('cdRunView');
+  const elDisplay    = document.getElementById('cdDisplay');
+  const elProgress   = document.getElementById('cdProgressFill');
+  const btnStartStop = document.getElementById('cdStartStop');
+  const btnReset     = document.getElementById('cdReset');
+  const inH = document.getElementById('cdH');
+  const inM = document.getElementById('cdM');
+  const inS = document.getElementById('cdS');
+
+  const pad2 = n => String(n).padStart(2,'0');
+
+  let totalMs = 0, remainMs = 0, running = false;
+  let startTime = 0, rafId = null;
+  let finished = false;
+
+  function fmtCountdown(ms) {
+    ms = Math.max(0, ms);
+    const s = Math.floor(ms / 1000) % 60;
+    const m = Math.floor(ms / 60000) % 60;
+    const h = Math.floor(ms / 3600000);
+    return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  }
+
+  function renderCD() {
+    const now = running ? remainMs - (Date.now() - startTime) : remainMs;
+    const clamped = Math.max(0, now);
+    elDisplay.textContent = fmtCountdown(clamped);
+    const pct = totalMs > 0 ? (clamped / totalMs) * 100 : 0;
+    elProgress.style.width = pct + '%';
+    elProgress.classList.toggle('urgent', pct <= 10 && pct > 0);
+
+    if (running && now <= 0) {
+      // Finished
+      running = false;
+      remainMs = 0;
+      finished = true;
+      elDisplay.classList.add('finished');
+      btnStartStop.textContent = 'Restart';
+      cancelAnimationFrame(rafId);
+      // Flash effect
+      let flashes = 0;
+      const flash = setInterval(() => {
+        elDisplay.style.opacity = elDisplay.style.opacity === '0' ? '1' : '0';
+        if (++flashes >= 6) { clearInterval(flash); elDisplay.style.opacity = '1'; }
+      }, 300);
+      return;
+    }
+    if (running) rafId = requestAnimationFrame(renderCD);
+  }
+
+  function getInputMs() {
+    const h = parseInt(inH.value) || 0;
+    const m = parseInt(inM.value) || 0;
+    const s = parseInt(inS.value) || 0;
+    return (h * 3600 + m * 60 + s) * 1000;
+  }
+
+  function showRunView() {
+    inputView.style.display = 'none';
+    runView.style.display   = 'flex';
+    btnReset.style.display  = '';
+  }
+
+  function showInputView() {
+    inputView.style.display = '';
+    runView.style.display   = 'none';
+    btnReset.style.display  = 'none';
+  }
+
+  btnStartStop.addEventListener('click', () => {
+    if (finished) {
+      // Restart from same total
+      finished = false;
+      remainMs = totalMs;
+      elDisplay.classList.remove('finished');
+      elDisplay.style.opacity = '1';
+      startTime = Date.now();
+      running = true;
+      btnStartStop.textContent = 'Pause';
+      rafId = requestAnimationFrame(renderCD);
+      return;
+    }
+
+    if (!running && remainMs === 0) {
+      // Fresh start
+      totalMs = getInputMs();
+      if (!totalMs) return;
+      remainMs = totalMs;
+      showRunView();
+    }
+
+    if (!running) {
+      startTime = Date.now();
+      running = true;
+      btnStartStop.textContent = 'Pause';
+      rafId = requestAnimationFrame(renderCD);
+    } else {
+      remainMs = Math.max(0, remainMs - (Date.now() - startTime));
+      running = false;
+      cancelAnimationFrame(rafId);
+      btnStartStop.textContent = 'Resume';
+    }
+  });
+
+  btnReset.addEventListener('click', () => {
+    running = false; finished = false;
+    cancelAnimationFrame(rafId);
+    remainMs = 0; totalMs = 0;
+    elDisplay.classList.remove('finished');
+    elDisplay.style.opacity = '1';
+    elDisplay.textContent = '00:00:00';
+    elProgress.style.width = '100%';
+    elProgress.classList.remove('urgent');
+    btnStartStop.textContent = 'Start';
+    showInputView();
+  });
+
+  // Clamp inputs on blur
+  [inH, inM, inS].forEach(el => {
+    el.addEventListener('blur', () => {
+      let v = parseInt(el.value) || 0;
+      if (el !== inH) v = Math.min(59, v);
+      el.value = v;
     });
-  })();
+  });
+})();
 </script>
+
 </body>
 </html>
