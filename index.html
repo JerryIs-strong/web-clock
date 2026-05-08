@@ -214,7 +214,11 @@
   .corner-btn:active { transform: scale(0.93); }
 
   #fullscreenBtn { top: 1.25rem; left: 1.25rem; }
+  #syncBtn       { bottom: 1.25rem; right: 1.25rem; }
   #themeToggle   { top: 1.25rem; right: 1.25rem; }
+  /* ── Sync button spin ──────────────────────────────────── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .syncing-spin { animation: spin 0.7s linear infinite; }
 </style>
 </head>
 <body>
@@ -226,6 +230,10 @@
 </button>
 
 <button class="corner-btn" id="themeToggle" aria-label="Switch to light mode">
+</button>
+
+<button class="corner-btn" id="syncBtn" aria-label="Sync time now">
+  <svg id="syncBtnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
 </button>
 
 <div class="clock-wrapper" role="main" aria-label="Clock">
@@ -357,7 +365,7 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
     }
   }
 
-  async function sync() {
+  window.sync = async function sync() {
     setStatus('syncing');
     const t0 = Date.now();
     try {
@@ -396,6 +404,19 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
   setInterval(sync, 5 * 60 * 1000); // re-sync every 5 min
   tick();
 })();
+
+  // ── Manual sync button ──────────────────────────────────
+  (function(){
+    const btn  = document.getElementById('syncBtn');
+    const icon = document.getElementById('syncBtnIcon');
+    btn.addEventListener('click', () => {
+      if (icon.classList.contains('syncing-spin')) return;
+      icon.classList.add('syncing-spin');
+      sync().finally(() => {
+        setTimeout(() => icon.classList.remove('syncing-spin'), 500);
+      });
+    });
+  })();
 </script>
 </body>
 </html>
