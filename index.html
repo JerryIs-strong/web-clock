@@ -83,13 +83,26 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 0.25rem;
+  gap: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 9999px;
   padding: 0.3rem;
   z-index: 100;
   transition: background var(--tr), border-color var(--tr);
+  isolation: isolate;
+}
+.tab-bar-slider {
+  position: absolute;
+  top: 0.3rem;
+  height: calc(100% - 0.6rem);
+  border-radius: 9999px;
+  background: var(--color-primary);
+  box-shadow: 0 2px 12px oklch(from var(--color-primary) l c h / 0.4);
+  transition: left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+              width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 0;
+  pointer-events: none;
 }
 .tab-btn {
   font-family: var(--font-body);
@@ -103,13 +116,13 @@ html, body {
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: background var(--tr), color var(--tr);
+  position: relative;
+  z-index: 1;
+  transition: color 0.25s ease;
 }
 .tab-btn:hover { color: var(--color-text); }
-.tab-btn.active {
-  background: var(--color-primary);
-  color: #fff;
-}
+.tab-btn:active { transform: scale(0.95); }
+.tab-btn.active { color: #fff; }
 
 /* ── Panels ─────────────────────────────────── */
 .panel {
@@ -359,6 +372,65 @@ html, body {
 }
 .cd-progress-fill.urgent { background: var(--color-error); }
 
+
+/* ── Time's Up overlay ──────────────────────── */
+#timesUpOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(from var(--color-error) l c h / 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+#timesUpOverlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+.timesup-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  animation: timesup-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+#timesUpOverlay:not(.visible) .timesup-inner {
+  animation: none;
+}
+@keyframes timesup-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.timesup-icon {
+  font-size: clamp(4rem, 12vw, 8rem);
+  line-height: 1;
+  animation: ring 0.6s ease-in-out 3;
+}
+@keyframes ring {
+  0%,100% { transform: rotate(0deg); }
+  20%     { transform: rotate(-20deg); }
+  60%     { transform: rotate(20deg); }
+}
+.timesup-text {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--color-error);
+  text-align: center;
+}
+.timesup-sub {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
 </style>
 </head>
 <body>
@@ -378,7 +450,8 @@ html, body {
 </button>
 
 <!-- Tab bar -->
-<nav class="tab-bar" role="tablist" aria-label="Mode">
+<nav class="tab-bar" role="tablist" aria-label="Mode" id="tabBar">
+  <div class="tab-bar-slider" id="tabSlider"></div>
   <button class="tab-btn active" role="tab" data-panel="panel-clock"  aria-selected="true">Clock</button>
   <button class="tab-btn"        role="tab" data-panel="panel-sw"     aria-selected="false">Stopwatch</button>
   <button class="tab-btn"        role="tab" data-panel="panel-cd"     aria-selected="false">Countdown</button>
@@ -458,6 +531,15 @@ html, body {
   </div>
 </section>
 
+<!-- Time's Up overlay -->
+<div id="timesUpOverlay" role="alertdialog" aria-label="Time's up" aria-live="assertive">
+  <div class="timesup-inner">
+    <div class="timesup-icon">⏰</div>
+    <div class="timesup-text">Time's Up!</div>
+    <div class="timesup-sub">Tap anywhere to dismiss</div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════
 // THEME
@@ -493,10 +575,27 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
 // TAB SWITCHER
 // ═══════════════════════════════════════════════════
 (function () {
-  const tabs   = document.querySelectorAll('.tab-btn');
-  const panels = document.querySelectorAll('.panel');
-  // Only show sync btn on clock tab
+  const tabs    = document.querySelectorAll('.tab-btn');
+  const panels  = document.querySelectorAll('.panel');
   const syncBtn = document.getElementById('syncBtn');
+  const slider  = document.getElementById('tabSlider');
+  const bar     = document.getElementById('tabBar');
+
+  function moveSlider(tab) {
+    const barRect = bar.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    slider.style.left  = (tabRect.left - barRect.left) + 'px';
+    slider.style.width = tabRect.width + 'px';
+  }
+
+  // Init slider on first active tab
+  const firstActive = document.querySelector('.tab-btn.active');
+  // Wait for layout
+  requestAnimationFrame(() => {
+    slider.style.transition = 'none';
+    moveSlider(firstActive);
+    requestAnimationFrame(() => { slider.style.transition = ''; });
+  });
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -506,6 +605,7 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
       tab.setAttribute('aria-selected','true');
       document.getElementById(tab.dataset.panel).classList.add('active');
       syncBtn.style.display = tab.dataset.panel === 'panel-clock' ? '' : 'none';
+      moveSlider(tab);
     });
   });
 })();
@@ -741,12 +841,8 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
       elDisplay.classList.add('finished');
       btnStartStop.textContent = 'Restart';
       cancelAnimationFrame(rafId);
-      // Flash effect
-      let flashes = 0;
-      const flash = setInterval(() => {
-        elDisplay.style.opacity = elDisplay.style.opacity === '0' ? '1' : '0';
-        if (++flashes >= 6) { clearInterval(flash); elDisplay.style.opacity = '1'; }
-      }, 300);
+      // Show "Time's Up!" overlay
+      showTimesUp();
       return;
     }
     if (running) rafId = requestAnimationFrame(renderCD);
@@ -827,8 +923,25 @@ document.getElementById('fullscreenBtn').addEventListener('click', () => {
       el.value = v;
     });
   });
+
+  function showTimesUp() {
+    const overlay = document.getElementById('timesUpOverlay');
+    overlay.classList.add('visible');
+    // Flash the display
+    let flashes = 0;
+    const flash = setInterval(() => {
+      elDisplay.style.opacity = elDisplay.style.opacity === '0' ? '1' : '0';
+      if (++flashes >= 8) { clearInterval(flash); elDisplay.style.opacity = '1'; }
+    }, 250);
+
+  }
+
+  document.getElementById('timesUpOverlay').addEventListener('click', () => {
+    document.getElementById('timesUpOverlay').classList.remove('visible');
+  });
 })();
 </script>
+
 
 </body>
 </html>
